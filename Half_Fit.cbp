@@ -35,7 +35,7 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="half_fit.h" />
-		<Unit filename="half_fit_test.c">
+		<Unit filename="hans_stuff.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="main.c">
