@@ -584,8 +584,8 @@ void  half_free( U32 *free_block )
 
     // ***** 1. FIRST CASE WHERE THE BLOCK TO BE FREED IS STANDALONE (no free blocks next to it) ***** \\
 
-    if( ((address_of_prev_block_in_memory == NULL) && (!(inline isAllocated(address_of_next_block_in_memory)))) || ((address_of_next_block_in_memory == NULL) && (!(inline isAllocated(address_of_prev_block_in_memory))))
-        || ((!(inline isAllocated(address_of_prev_block_in_memory))) && (!(inline isAllocated(address_of_next_block_in_memory)))) )
+    if( ((address_of_prev_block_in_memory == NULL) && (!(isAllocated(address_of_next_block_in_memory)))) || ((address_of_next_block_in_memory == NULL) && (!(isAllocated(address_of_prev_block_in_memory))))
+        || ((!(isAllocated(address_of_prev_block_in_memory))) && (!(isAllocated(address_of_next_block_in_memory)))) )
     {
         new_bin_index = floor(log(getSize(free_block)) / log(2)); //the appropriate bin that the block to be freed must be put into
 
@@ -596,7 +596,7 @@ void  half_free( U32 *free_block )
 
     // ***** 2. WE'LL TAKE THE CASE IF THE BLOCK BEING DEALLOCATED HAS ONLY A FREE BLOCK TO THE RIGHT OF IT ***** \\
 
-    else if( (address_of_prev_block_in_memory == NULL) || (inline isAllocated(address_of_prev_block_in_memory) && !(inline isAllocated(address_of_next_block_in_memory))) ) // check that only the block to the right of free_block is free
+    else if( (address_of_prev_block_in_memory == NULL) || (isAllocated(address_of_prev_block_in_memory) && !(isAllocated(address_of_next_block_in_memory))) ) // check that only the block to the right of free_block is free
     {
         U32 *address_of_next_allocated_block;
 
@@ -630,7 +630,7 @@ void  half_free( U32 *free_block )
     // ***** 3. TAKE THE CASE IF THE BLOCK BEING DEALLOCATED HAS TWO ADJACENT FREE BLOCKS NEXT TO IT ***** \\
 
     //check that there are two free adjacent blocks and that we are not at the end of the whole memory block
-    else if( (!(inline isAllocated(address_of_prev_block_in_memory))) && (!(inline isAllocated(address_of_next_block_in_memory))) && (address_of_next_block_in_memory != NULL) )
+    else if( (!(isAllocated(address_of_prev_block_in_memory))) && (!(isAllocated(address_of_next_block_in_memory))) && (address_of_next_block_in_memory != NULL) )
     {
         U32 *new_head_of_combined_free_block;
         U32 *address_of_next_allocated_block;
