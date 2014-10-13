@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include "type.h"
 
 #define smlst_blk			5
 #define	smlst_blk_sz  ( 1 << smlst_blk )
@@ -15,34 +16,34 @@
 
 /**-----------------------------------------------------------------Timer part--------------------------------------------------------*/
 // How many ticks are passed
-volatile uint32_t msTicks;
-volatile uint8_t run_timer;
+//volatile uint32_t msTicks;
+// uint8_t run_timer;
 
 // SysTick interrupt Handler.
-void SysTick_Handler(void)  {
+/*void SysTick_Handler(void)  {
   if ( run_timer )
 		++msTicks;
-}
+}*/
 
-__inline TimerInit(){
+/*__inline TimerInit(){
 
 	msTicks = 0;
 	run_timer = 0;
-	/* Configure SysTick to generate an interrupt every millisecond */
+	//Configure SysTick to generate an interrupt every millisecond
   while (SysTick_Config(SystemCoreClock / 1000))  {
-    /* Check return code for errors */
+    //Check return code for errors
   }
-}
+}*/
 
-__inline TimerStart(){
+/*__inline TimerStart(){
 	run_timer = 1;
 }
 
 __inline TimerStop(){
 	run_timer = 0;
-}
+}*/
 
-__inline current_elapsed_time(){
+/*__inline current_elapsed_time(){
 		return msTicks;
 }
 
@@ -51,7 +52,7 @@ __inline TimerReset(){
 	if ( run_timer == 0 ) {
 		msTicks = 0;
 	}
-}
+}*/
 
 /**--------------------------------------------------------------End of Timer part--------------------------------------------------------*/
 
@@ -86,7 +87,7 @@ size_t find_max_block( void ) {
 		p = half_alloc( i );
 
 		if ( p != NULL ) {
-			half_free( p );
+			//half_free( p );
 			return i;
 		}
 	}
@@ -112,7 +113,7 @@ bool is_violated( pair_t pair ) {
 
 pair_t find_violation( block_t * blk_arr, size_t len ) {
 	pair_t result;
-	uint32_t i;
+	U32 i;
 	block_t empty_blk;
 
 	qsort(blk_arr, len, sizeof(block_t), cmpr_blks);
@@ -135,8 +136,8 @@ pair_t find_violation( block_t * blk_arr, size_t len ) {
 	return result;
 }
 
-uint32_t log_2( uint32_t n ) {
-	uint32_t b, m;
+U32 log_2( U32 n ) {
+	U32 b, m;
 
 	if ( n <= 0 ) {
 		printf( "log_2(0) is wrong\n" );
@@ -157,7 +158,7 @@ uint32_t log_2( uint32_t n ) {
 
 bool test_max_alc( void ) {
 	bool rslt = true;
-	uint32_t blk_sz, max_blk_sz;
+	U32 blk_sz, max_blk_sz;
 
 	half_init();
 
@@ -175,7 +176,7 @@ bool test_max_alc( void ) {
 
 bool test_alc_free_max( void ) {
 	bool rslt = true;
-	uint32_t blk_sz;
+	U32 blk_sz;
 	void* ptr;
 
 	half_init();
@@ -192,7 +193,7 @@ bool test_alc_free_max( void ) {
 
 bool test_static_alc_free( void ) {
 	bool rslt = true;
-	uint32_t max_sz;
+	U32 max_sz;
 	void *ptr_1, *ptr_2, *ptr_3, *ptr_4, *ptr_5, *ptr_6;
 
 	half_init();
@@ -214,25 +215,25 @@ bool test_static_alc_free( void ) {
 	ptr_5 = half_alloc(12345);
 	if (ptr_5 == NULL) return false;
 
-	half_free(ptr_1);
+	//half_free(ptr_1);
 
 	ptr_6 = half_alloc(1);
 	if (ptr_6 == NULL) return false;
 
-	half_free(ptr_3);
+	//half_free(ptr_3);
 
-	half_free(ptr_4);
+	//half_free(ptr_4);
 
 	ptr_1 = half_alloc(1 << 9);
 	if (ptr_1 == NULL) return false;
 
-	half_free(ptr_6);
+	//half_free(ptr_6);
 
-	half_free(ptr_1);
+	//half_free(ptr_1);
 
-	half_free(ptr_2);
+	//half_free(ptr_2);
 
-	half_free(ptr_5);
+	//half_free(ptr_5);
 
 	// Check wether all allocated memory blocks are freed.
 	ptr_1 = half_alloc(max_sz);
@@ -241,7 +242,7 @@ bool test_static_alc_free( void ) {
 		rslt = false;
 		printf("Memory is defraged.\n");
 	} else {
-		half_free(ptr_1);
+		//half_free(ptr_1);
 	}
 
 	return rslt;
@@ -285,16 +286,16 @@ bool test_static_alc_free_violation( void ) {
 	}
 
 	--blks_sz;
-	half_free(blks[blks_sz].ptr);
+	//half_free(blks[blks_sz].ptr);
 
 	--blks_sz;
-	half_free(blks[blks_sz].ptr);
+	//half_free(blks[blks_sz].ptr);
 
 	--blks_sz;
-	half_free(blks[blks_sz].ptr);
+	//half_free(blks[blks_sz].ptr);
 
 	--blks_sz;
-	half_free(blks[blks_sz].ptr);
+	//half_free(blks[blks_sz].ptr);
 
 	alloc_blk_in_arr(blks, &blks_sz, (1 << 9));
 
@@ -303,10 +304,10 @@ bool test_static_alc_free_violation( void ) {
 		return false;
 
 	--blks_sz;
-	half_free(blks[blks_sz].ptr);
+	//half_free(blks[blks_sz].ptr);
 
 	--blks_sz;
-	half_free(blks[blks_sz].ptr);
+	//half_free(blks[blks_sz].ptr);
 
 	// Check wether all allocated memory blocks are freed.
 	ptr_1 = half_alloc(max_sz);
@@ -315,7 +316,7 @@ bool test_static_alc_free_violation( void ) {
 		rslt = false;
 		printf("Memory is defraged.\n");
 	} else {
-		half_free( ptr_1 );
+		//half_free( ptr_1 );
 	}
 
 	return rslt;
@@ -376,7 +377,7 @@ bool test_rndm_alc_free( void ) {
 		if ( (rand() % 2) && (blks_sz > 0) ) {
 			// Free a random block
 			tbf = rand() % blks_sz;	// To be freed idex
-			half_free(blks[tbf].ptr);
+			//half_free(blks[tbf].ptr);
 			printf("%i)The %d Byte block starting from %d is free1\n", ++line, blks[tbf].len, blks[tbf].ptr);
 			--blks_sz;
 			blks[tbf] = blks[blks_sz];
@@ -402,7 +403,7 @@ bool test_rndm_alc_free( void ) {
 
 
 	for ( i = blks_sz - 1; i >= 0; --i ) {
-		half_free(blks[i].ptr);
+		//half_free(blks[i].ptr);
 		--blks_sz;
 		printf("%i)The %d Byte block starting from %d is free2\n", ++line, blks[i].len, blks[i].ptr);
 	}
@@ -417,7 +418,7 @@ bool test_rndm_alc_free( void ) {
 		rslt = false;
 		printf("Memory is defraged.\n");
 	} else {
-		half_free(ptr_1);
+		//half_free(ptr_1);
 	}
 
 	return rslt;
@@ -425,7 +426,7 @@ bool test_rndm_alc_free( void ) {
 
 bool test_max_alc_1_byte( void ) {
 	bool rslt = true;
-	uint32_t c = 0;
+	U32 c = 0;
 	size_t max_sz;
 
 	half_init();
@@ -456,11 +457,11 @@ bool test_max_alc_rand_byte( void ) {
 
 int main( void ) {
 
-	SystemInit();
-	SystemCoreClockUpdate();
-	TimerInit();
+	//SystemInit();
+	//SystemCoreClockUpdate();
+	//TimerInit();
 
-	TimerStart(); {
+	//TimerStart(); {
 		printf( "test_max_alc=%i \n",                   test_max_alc() );
 
 		printf( "test_alc_free_max=%i \n",              test_alc_free_max() );
@@ -468,9 +469,9 @@ int main( void ) {
 		printf( "test_static_alc_free_violation=%i \n", test_static_alc_free_violation() );
 		printf( "test_rndm_alc_free=%i \n",             test_rndm_alc_free() );
 		printf( "test_max_alc_1_byte=%i \n",            test_max_alc_1_byte() );
-	} TimerStop();
+	//} TimerStop();
 
-	printf( "The elappsed time is %d ms\n", current_elapsed_time() );
+	//printf( "The elappsed time is %d ms\n", current_elapsed_time() );
 
 	while(1);
 }

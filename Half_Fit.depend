@@ -25,7 +25,7 @@
 	"half_fit.h"
 	"type.h"
 
-1413170964 source:c:\users\user\documents\github\half-fit-memory-allocation-algorithm\half_fit.c
+1413240669 source:c:\users\user\documents\github\half-fit-memory-allocation-algorithm\half_fit.c
 	<stdio.h>
 	<stdbool.h>
 	<limits.h>
@@ -43,11 +43,19 @@
 	"half_fit.h"
 	"type.h"
 
-1413172748 source:c:\users\user\documents\github\half-fit-memory-allocation-algorithm\main.c
+1413242926 source:c:\users\user\documents\github\half-fit-memory-allocation-algorithm\main.c
 	<stdio.h>
 	<errno.h>
 	<stdbool.h>
 	<stdlib.h>
 	"half_fit.h"
+	"type.h"
+
+1413243028 source:c:\users\user\documents\github\half-fit-memory-allocation-algorithm\half_fit_test.c
+	"half_fit.h"
+	<stdio.h>
+	<errno.h>
+	<stdbool.h>
+	<stdlib.h>
 	"type.h"
 
