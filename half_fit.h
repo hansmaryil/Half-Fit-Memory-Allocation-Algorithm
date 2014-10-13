@@ -2,7 +2,8 @@
 #define HALF_FIT_H_
 
 
-typedef unsigned int       U32;
+typedef unsigned int U32;
+U32 *base_address;
 
 typedef struct mem_block {
     char *base_address;
@@ -13,7 +14,7 @@ typedef struct half_fit {
 } half_fit_t;
 
 void  half_init( void );
-char *half_alloc( U32 );
+U32 *half_alloc( U32 );
 // or void *half_alloc( unsigned int );
 void  half_free( char * );
 

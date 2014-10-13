@@ -7,48 +7,401 @@
 
 //global variable declaration
 half_fit_t half_fit;
-char *base_address;
-U32 init_size = 32768;
-char *bin_ptrs[11]; //initialize an array of char pointers to point to the first block in each bin (initially NULL)
-
-//this helper fcn initializes the bits that represent addresses of the next and prev blocks in a bucket to 0
-//this ONLY works for the initial block of 32768 bytes
-void half_init_unallocated_block (char *address)
-{
-    *(address + 4) = *(address + 4) >> 8; // initialize the previous bucket ptr to 0s
-    *(address + 5) = *(address + 5) >> 8; // initialize the next bucket ptr to 0s
-    *(address + 6) = *(address + 6) >> 4; // complete the initialization
-
-}
+U32 *base_address;
+U32 init_size = 8192; //each U32 int is 4 bytes; since we need 32768 bytes in total, 8192 U32 ints will be its equivalent
+U32 *bin_ptrs[11]; //initialize an array of uint pointers to point to the first block in each bin (initially NULL)
 
 void  half_init( void )
 {
     U32 i;
-    base_address = (char *) malloc(init_size);
-    printf("Base Address: %d %x\n", base_address, base_address);
+    base_address = (U32 *) malloc(init_size);
 
-    //initializing header (first 4 bytes)
-    // both previous and next ptrs in the header are pointing to 0000000000 (pointing to itself)
-    *base_address = *base_address >> 8; //set the first 8 bits to 0
-    *(base_address + 1) = *(base_address + 1) >> 8;//the next 8 bits to 0
-    *(base_address + 2) = *(base_address + 2) >> 8;// this completes the declaration of previous and next to itself
-    //size of 1024 will be represented as 0000000000 because size can be between 1 and 1024 but 1024 requires 11 bits to represent; since block size is minimum 1, we can use 0000000000 to represent it
-    *(base_address + 3) = *(base_address + 3) >> 8; //6 bits for size, 1 bit for unallocated, 1 bit don't care
-    printf("Base Address: %d %x  %d\n", base_address, base_address, &base_address);
+    //initializing header (first 4 bytes; A.K.A the first U32 int)
+    *base_address = 0;
+    //(*(base_address)) = ((*base_address) << 32); //try to find out why this line doesnot work properly
+
+    //we are only interested in making the first two bytes of the 2nd U32 int to "0" but it does not matter what we do to the remainder of the integer
+    *(base_address + 1) = 0;
 
     //initializing elements of bin_ptrs array to NULL
     for(i = 0; i < 11; ++i)
     {
         bin_ptrs[i] = NULL;
-        printf("Bin Ptrs %p", bin_ptrs[i]);
     }
-    bin_ptrs[10] = base_address; //point the initial bin to block size 32768 (32*1024)
-
-    half_init_unallocated_block (base_address);
-
+    bin_ptrs[10] = base_address; //our initial block belongs in bin 10
 }
 
-void half_alloc_helper(char *block_addr, U32 bin_index){
+//function to retrieve the size from the header of a block of memory
+U32 getSize( U32 *mem_block){
+    U32 block_size;
+    /*- To get the size, we are interested in the first U32 int in mem_block
+      - Specifically, we are interested in bits 31-40
+      - To do this, we bitmask using AND (&) with 0000-0000-0000-0000-0000-1111-1111-1100 = 4092 in decimal
+      - Then, we bit-shift to the right by 2
+    */
+
+    block_size = ((*(mem_block)) & 4092) >> 2;
+    //we are storing a size of 1024 as "0" because 1024 cannot be represented in 10-bits and
+    //since we know that the minimum block size is 1, we can use 0 to represent 1024 without causing any issues
+    if(block_size == 0){
+        block_size = 1024;
+    }
+    return block_size;
+}
+
+//function to set the size in the header of a block of memory
+void setSize( U32 *mem_block, U32 size){
+    /*we must take size and make have it represented through 10 bits
+      - function assumes that size is already between 0 and 1023 (meaning it is the number of 32 byte memory blocks in the entire block)
+      - we are interested in making bits 21-30 in the U32 header to the value of size
+      - we shift the size by 2 bits to the left
+      - we then bitmask AND (&) the entire header with 1111-1111-1111-1111-1111-0000-0000-0011 = 4294963203 in decimal
+        - this ensures that all values in the header are kept the same and size is turned to 0
+      - we then bitmask OR (|) the entire header with 0000-0000-0000-0000-0000-(s1)(s2)(s3)(s4)-(s5)(s6)(s7)(s8)-(s9)(s10)00
+        where (s1) to (s10) represent the 10 individual bits in the size representation
+    */
+    U32 header;
+
+    size = size << 2;
+    header = *mem_block & 4294963203;
+
+    header = header | size;
+    *mem_block = header;
+}
+
+//function to retrieve the pointer to the previous block in memory from the header of the block passed in as a parameter
+U32 *getPrevInMemory( U32 *mem_block){
+    U32 prevInMemoryReferenceAddress; //the address stored in the 10-bits is a reference from 0 to 1023, representing which 32-byte block in memory it is pointing to
+    /*- To get the pointer to the previous block in memory, we are interested in the first U32 int in mem_block
+      - Specifically, we are interested in bits 1-10
+      - To do this, we bitmask using AND (&) with 1111-1111-1100-0000-0000-0000-0000-0000 = 4290772992 in decimal
+      - Then, we bit-shift to the right by 22
+    */
+
+    prevInMemoryReferenceAddress = ((*(mem_block)) & 4290772992) >> 22;
+
+    //To get the actual previous address out of this, we must multiply prevInMemoryReferenceAddress by 32 and add our base address to it
+    if((base_address + prevInMemoryReferenceAddress*(32/4)) == mem_block){
+        return NULL;
+    }
+    return (base_address + prevInMemoryReferenceAddress*(32/4));
+}
+
+//function to set the pointer to the previous block in memory in the header of the block passed in as a parameter
+void setPrevInMemory(U32 *mem_block, U32 *prevInMemory){
+    /*we must take prevInMemory and make have it represented through 10 bits
+      - we are interested in making bits 1-10 in the U32 header to the value of prevInMemory
+      - we convert prevInMemory to an integer, then we subtract the base address, then we divide by 32
+        (this gets us the reference address) and then we shift it to the left by 22
+      - we then bitmask AND (&) the entire header with 0000-0000-0011-1111-1111-1111-1111-1111 = 4194303 in decimal
+        - this ensures that all values in the header are kept the same and prevInMemory is turned to 0
+      - we then bitmask OR (|) the entire header with (p1)(p2)(p3)(p4)-(p5)(p6)(p7)(p8)-(p9)(p10)00-0000-0000-0000-0000-0000
+        where (p1) to (p10) represent the 10 individual bits in the prevInMemory representation
+    */
+    U32 header;
+    U32 prevInMemoryRefAdd;
+    U32 prevInMemoryVal;
+    U32 base_address_val;
+
+    prevInMemoryVal = (U32) prevInMemory;
+    base_address_val = (U32) base_address;
+
+    prevInMemoryRefAdd = ((prevInMemoryVal - base_address_val)/32);
+    prevInMemoryRefAdd = prevInMemoryRefAdd << 22;
+
+    header = *mem_block;
+    header = header & 4194303;
+
+    header = header | prevInMemoryRefAdd;
+    *mem_block = header;
+}
+
+//function to retrieve the pointer to the next block in memory from the header of the block passed in as a parameter
+U32 *getNextInMemory( U32 *mem_block){
+    U32 nextInMemoryReferenceAddress; //the address stored in the 10-bits is a reference from 0 to 1023, representing which 32-byte block in memory it is pointing to
+    /*- To get the pointer to the next block in memory, we are interested in the first U32 int in mem_block
+      - Specifically, we are interested in bits 11-20
+      - To do this, we bitmask using AND (&) with 0000-0000-0011-1111-1111-0000-0000-0000 = 4190208 in decimal
+      - Then, we bit-shift to the right by 12
+    */
+
+    nextInMemoryReferenceAddress = ((*(mem_block)) & 4190208) >> 12;
+
+    //To get the actual next address out of this, we must multiply prevInMemoryReferenceAddress by 32 and add our base address to it
+    if((base_address + nextInMemoryReferenceAddress*(32/4)) == mem_block){
+        return NULL;
+    }
+    return (base_address + nextInMemoryReferenceAddress*(32/4));
+}
+
+//function to set the pointer to the previous block in memory in the header of the block passed in as a parameter
+void setNextInMemory(U32 *mem_block, U32 *nextInMemory){
+    /*we must take nextInMemory and make have it represented through 10 bits
+      - we are interested in making bits 11-20 in the U32 header to the value of prevInMemory
+      - we convert prevInMemory to an integer, then we subtract the base address, then we divide by 32
+        (this gets us the reference address) and then we shift it to the left by 12
+      - we then bitmask AND (&) the entire header with 1111-1111-1100-0000-0000-1111-1111-1111 = 4290777087 in decimal
+        - this ensures that all values in the header are kept the same and nextInMemory is turned to 0
+      - we then bitmask OR (|) the entire header with 0000-0000-00(p1)(p2)-(p3)(p4)(p5)(p6)-(p7)(p8)(p9)(p10)-0000-0000-0000
+        where (p1) to (p10) represent the 10 individual bits in the nextInMemory representation
+    */
+    U32 header;
+    U32 nextInMemoryRefAdd;
+    U32 nextInMemoryVal;
+    U32 base_address_val;
+
+    nextInMemoryVal = (U32) nextInMemory;
+    base_address_val = (U32) base_address;
+
+    nextInMemoryRefAdd = ((nextInMemoryVal - base_address_val)/32);
+    nextInMemoryRefAdd = nextInMemoryRefAdd << 12;
+
+    header = *mem_block;
+    header = header & 4290777087;
+
+    header = header | nextInMemoryRefAdd;
+    *mem_block = header;
+}
+
+//function to retrieve the reference address (between 0 and 1023) to the previous block in memory from the header of the block passed in as a parameter
+//NOTE: Unlike the getPrevInMemory function, this function DOES NOT/CANNOT return NULL if the previous pointer is pointing to itself (mem_block)
+U32 getPrevInMemoryReferenceAddress( U32 *mem_block){
+    U32 prevInMemoryReferenceAddress; //the address stored in the 10-bits is a reference from 0 to 1023, representing which 32-byte block in memory it is pointing to
+    /*- To get the pointer to the previous block in memory, we are interested in the first U32 int in mem_block
+      - Specifically, we are interested in bits 1-10
+      - To do this, we bitmask using AND (&) with 1111-1111-1100-0000-0000-0000-0000-0000 = 4290772992 in decimal
+      - Then, we bit-shift to the right by 22
+    */
+    prevInMemoryReferenceAddress = ((*(mem_block)) & 4290772992) >> 22;
+
+    return prevInMemoryReferenceAddress;
+}
+
+//function to set the reference address to the previous block in memory in the header of the block passed in as a parameter
+void setPrevInMemoryReferenceAddress(U32 *mem_block, U32 prevInMemoryRefAddress){
+    /*we must take prevInMemory and make have it represented through 10 bits
+      - we bitmask AND (&) the entire header with 0000-0000-0011-1111-1111-1111-1111-1111 = 4194303 in decimal
+        - this ensures that all values in the header are kept the same and prevInMemory is turned to 0
+      - we then bitmask OR (|) the entire header with prevInMemoryRefAddress shifted left by 22
+    */
+    U32 header;
+
+    header = *mem_block;
+    header = header & 4194303;
+
+    header = header | (prevInMemoryRefAddress << 22);
+    *mem_block = header;
+}
+
+//function to retrieve the reference address (between 0 and 1023) to the next block in memory from the header of the block passed in as a parameter
+//NOTE: Unlike the getNextInMemory function, this function DOES NOT/CANNOT return NULL if the next pointer is pointing to itself (mem_block)
+U32 getNextInMemoryReferenceAddress( U32 *mem_block){
+    U32 nextInMemoryReferenceAddress; //the address stored in the 10-bits is a reference from 0 to 1023, representing which 32-byte block in memory it is pointing to
+    /*- To get the pointer to the next block in memory, we are interested in the first U32 int in mem_block
+      - Specifically, we are interested in bits 11-20
+      - To do this, we bitmask using AND (&) with 0000-0000-0011-1111-1111-0000-0000-0000 = 4190208 in decimal
+      - Then, we bit-shift to the right by 12
+    */
+
+    nextInMemoryReferenceAddress = ((*(mem_block)) & 4190208) >> 12;
+    return nextInMemoryReferenceAddress;
+}
+
+//function to set the reference address to the next block in memory in the header of the block passed in as a parameter
+void setNextInMemoryReferenceAddress(U32 *mem_block, U32 nextInMemoryRefAddress){
+    /*we must take nextInMemory and make have it represented through 10 bits
+      - we bitmask AND (&) the entire header with 1111-1111-1100-0000-0000-1111-1111-1111 = 4290777087 in decimal
+        - this ensures that all values in the header are kept the same and nextInMemory is turned to 0
+      - we then bitmask OR (|) the entire header with nextInMemoryRefAddress shifted left by 12
+    */
+    U32 header;
+
+    header = *mem_block;
+    header = header & 4290777087;
+
+    header = header | (nextInMemoryRefAddress << 12);
+    *mem_block = header;
+}
+
+//function to determine whether or not a memory block is allocated
+inline bool isAllocated(U32 *mem_block){
+    /*To determine if a memory block is allocated, we are interested in determining what is in the 31 bit in the header
+      - To get the 31st bit, we bitmask using AND (&) with 0000-0000-0000-0000-0000-0000-0000-0010 = 2 in decimal
+      - Then, we bit-shift to the right by 1
+    */
+    return ((((*(mem_block)) & 2) >> 1) == 1) ? 1 : 0;
+}
+
+//function activates the boolean variable that indicates a block is allocated
+void setAllocate(U32 *mem_block){
+    /* To allocate the boolean variable in the header to 1 (bit 31), we must:
+       - we bitmask OR (|) the header with 0000-0000-0000-0000-0000-0000-0000-0010 = 2 in decimal
+    */
+    *(mem_block) = (*(mem_block)) | 2;
+}
+
+//function de-activates the boolean variable that indicates a block is allocated
+void setDeallocate(U32 *mem_block){
+    /* To allocate the boolean variable in the header to 1 (bit 31), we must:
+       - we bitmask AND (&) the header with 1111-1111-1111-1111-1111-1111-1111-1101 = 4294967293 in decimal
+    */
+    *(mem_block) = (*(mem_block)) & 4294967293;
+}
+
+//function to retrieve the pointer to the previous block in a bin from the 2nd U32 integer of the block passed in as a parameter
+U32 *getPrevInBin( U32 *mem_block){
+    U32 prevInBinReferenceAddress; //the address stored in the 10-bits is a reference from 0 to 1023, representing which 32-byte block in memory it is pointing to
+    /*- To get the pointer to the prev block in the bin, we are interested in the 2nd U32 int in mem_block
+      - Specifically, we are interested in bits 1-10
+      - To do this, we bitmask using AND (&) with 1111-1111-1100-0000-0000-0000-0000-0000 = 4290772992 in decimal
+      - Then, we bit-shift to the right by 22
+    */
+
+    prevInBinReferenceAddress = ((*(mem_block + 1)) & 4290772992) >> 22;
+
+    //To get the actual prev address out of this, we must multiply prevInBinReferenceAddress by 32 and add our base address to it
+    if((base_address + prevInBinReferenceAddress*(32/4)) == mem_block){
+        return NULL;
+    }
+    return (base_address + prevInBinReferenceAddress*(32/4));
+}
+
+//function to set the pointer to the previous block in bin in the header of the block passed in as a parameter
+void setPrevInBin(U32 *mem_block, U32 *prevInBin){
+    /*we must take prevInBin and make have it represented through 10 bits
+      - we are interested in making bits 1-10 in the second u32 integer to the value of prevInBin
+      - we convert prevInBin to an integer, then we subtract the base address, then we divide by 32
+        (this gets us the reference address) and then we shift it to the left by 22
+      - we then bitmask AND (&) the entire second u32 integer with 0000-0000-0011-1111-1111-1111-1111-1111 = 4194303 in decimal
+        - this ensures that all values in the header are kept the same and prevInBin is turned to 0
+      - we then bitmask OR (|) the entire header with (p1)(p2)(p3)(p4)-(p5)(p6)(p7)(p8)-(p9)(p10)00-0000-0000-0000-0000-0000
+        where (p1) to (p10) represent the 10 individual bits in the prevInBin representation
+    */
+    U32 header_part2;
+    U32 prevInBinRefAdd;
+    U32 prevInBinVal;
+    U32 base_address_val;
+
+    prevInBinVal = (U32) prevInBin;
+    base_address_val = (U32) base_address;
+
+    prevInBinRefAdd = ((prevInBinVal - base_address_val)/32);
+    prevInBinRefAdd = prevInBinRefAdd << 22;
+
+    header_part2 = *(mem_block + 1);
+    header_part2 = header_part2 & 4194303;
+
+    header_part2 = header_part2 | prevInBinRefAdd;
+    *(mem_block + 1) = header_part2;
+}
+
+//function to retrieve the pointer to the next block in a bin from the 2nd U32 integer of the block passed in as a parameter
+U32 *getNextInBin( U32 *mem_block){
+    U32 nextInBinReferenceAddress; //the address stored in the 10-bits is a reference from 0 to 1023, representing which 32-byte block in memory it is pointing to
+    /*- To get the pointer to the next block in the bin, we are interested in the 2nd U32 int in mem_block
+      - Specifically, we are interested in bits 11-20
+      - To do this, we bitmask using AND (&) with 0000-0000-0011-1111-1111-0000-0000-0000 = 4190208 in decimal
+      - Then, we bit-shift to the right by 12
+    */
+
+    nextInBinReferenceAddress = ((*(mem_block + 1)) & 4190208) >> 12;
+
+    //To get the actual next address out of this, we must multiply prevInBinReferenceAddress by 32 and add our base address to it
+    if((base_address + nextInBinReferenceAddress*(32/4)) == mem_block){
+        return NULL;
+    }
+    return (base_address + nextInBinReferenceAddress*(32/4));
+}
+
+//function to set the pointer to the next block in bin in the header of the block passed in as a parameter
+void setNextInBin(U32 *mem_block, U32 *nextInBin){
+    /*we must take nextInBin and make have it represented through 10 bits
+      - we are interested in making bits 11-20 in the second u32 integer to the value of nextInBin
+      - we convert nextInBin to an integer, then we subtract the base address, then we divide by 32
+        (this gets us the reference address) and then we shift it to the left by 12
+      - we then bitmask AND (&) the entire second u32 integer with 1111-1111-1100-0000-0000-1111-1111-1111 = 4290777087 in decimal
+        - this ensures that all values in the second U32 integer are kept the same and nextInBin is turned to 0
+      - we then bitmask OR (|) the entire header with 0000-0000-00(p1)(p2)-(p3)(p4)(p5)(p6)-(p7)(p8)(p9)(p10)-0000-0000-0000
+        where (p1) to (p10) represent the 10 individual bits in the nextInBin representation
+    */
+    U32 header_part2;
+    U32 nextInBinRefAdd;
+    U32 nextInBinVal;
+    U32 base_address_val;
+
+    nextInBinVal = (U32) nextInBin;
+    base_address_val = (U32) base_address;
+
+    nextInBinRefAdd = ((nextInBinVal - base_address_val)/32);
+    nextInBinRefAdd = nextInBinRefAdd << 12;
+
+    header_part2 = *(mem_block + 1);
+    header_part2 = header_part2 & 4290777087;
+
+    header_part2 = header_part2 | nextInBinRefAdd;
+    *(mem_block + 1) = header_part2;
+}
+
+//function to retrieve the reference address (between 0 and 1023) to the previous block in a bin from the 2nd U32 integer of the block passed in as a parameter
+//NOTE: Unlike the getPrevInBin function, this function DOES NOT/CANNOT return NULL if the next pointer is pointing to itself (mem_block)
+U32 getPrevInBinReferenceAddress( U32 *mem_block){
+    U32 prevInBinReferenceAddress; //the address stored in the 10-bits is a reference from 0 to 1023, representing which 32-byte block in memory it is pointing to
+    /*- To get the pointer to the prev block in the bin, we are interested in the 2nd U32 int in mem_block
+      - Specifically, we are interested in bits 1-10
+      - To do this, we bitmask using AND (&) with 1111-1111-1100-0000-0000-0000-0000-0000 = 4290772992 in decimal
+      - Then, we bit-shift to the right by 22
+    */
+
+    return (((*(mem_block + 1)) & 4290772992) >> 22);
+}
+
+//function to set the reference address to the previous block in bin in the 2nd U32 integer of the block passed in as a parameter
+void setPrevInBinReferenceAddress(U32 *mem_block, U32 prevInBinRefAddress){
+    /*we must take prevInBin and have it represented through 10 bits
+      - we bitmask AND (&) the entire header_part2 with 0000-0000-0011-1111-1111-1111-1111-1111 = 4194303 in decimal
+        - this ensures that all values in the header_part2 are kept the same and prevInBin is turned to 0
+      - we then bitmask OR (|) the entire header with prevInBinRefAddress shifted left by 22
+    */
+    U32 header_part2;
+
+    header_part2 = *(mem_block + 1);
+    header_part2 = header_part2 & 4194303;
+
+    header_part2 = header_part2 | (prevInBinRefAddress << 22);
+    *(mem_block + 1) = header_part2;
+}
+
+//function to retrieve the reference address (between 0 and 1023) to the next block in a bin from the 2nd U32 integer of the block passed in as a parameter
+//NOTE: Unlike the getNextInBin function, this function DOES NOT/CANNOT return NULL if the next pointer is pointing to itself (mem_block)
+U32 getNextInBinReferenceAddress( U32 *mem_block){
+    U32 nextInBinReferenceAddress; //the address stored in the 10-bits is a reference from 0 to 1023, representing which 32-byte block in memory it is pointing to
+    /*- To get the pointer to the next block in the bin, we are interested in the 2nd U32 int in mem_block
+      - Specifically, we are interested in bits 11-20
+      - To do this, we bitmask using AND (&) with 0000-0000-0011-1111-1111-0000-0000-0000 = 4190208 in decimal
+      - Then, we bit-shift to the right by 12
+    */
+
+    return (((*(mem_block + 1)) & 4190208) >> 12);
+}
+
+//function to set the reference address to the next block in bin in the 2nd U32 integer of the block passed in as a parameter
+void setNextInBinReferenceAddress(U32 *mem_block, U32 nextInBinRefAddress){
+    /*we must take nextInBin and have it represented through 10 bits
+      - we bitmask AND (&) the entire second u32 integer with 1111-1111-1100-0000-0000-1111-1111-1111 = 4290777087 in decimal
+        - this ensures that all values in the second U32 integer are kept the same and nextInBin is turned to 0
+      - we then bitmask OR (|) the entire header with 0000-0000-00(p1)(p2)-(p3)(p4)(p5)(p6)-(p7)(p8)(p9)(p10)-0000-0000-0000
+        where (p1) to (p10) represent the 10 individual bits in the nextInBin representation
+    */
+    U32 header_part2;
+
+    header_part2 = *(mem_block + 1);
+    header_part2 = header_part2 & 4290777087;
+
+    header_part2 = header_part2 | (nextInBinRefAddress << 12);
+    *(mem_block + 1) = header_part2;
+}
+
+void half_alloc_helper(U32 *block_addr, U32 bin_index){
     U32 next_block_in_current_bin;
     char *nextBlockInCurrentBin;
     char *temp;
@@ -74,12 +427,12 @@ void half_alloc_helper(char *block_addr, U32 bin_index){
 
 }
 
-char *half_alloc( U32 n) {
+U32 *half_alloc( U32 n) {
     U32 bin_index;
-    char *mem_block;
+    U32 *mem_block;
     U32 mem_block_size; //size of the available memory block
 
-    n += 4; //including the size of the mandatory 4 byte header
+    n += 4; //including the size of the mandatory 4 byte header; also, we add 4 as n represents the number of bytes
 
     //Determining the index of the bin that we want to start looking in
     if(n < 32)
@@ -141,12 +494,7 @@ char *half_alloc( U32 n) {
 
     // Now to perform the appropriate memory allocations
     //Retrieving the size of the memory block we will be allocating/splitting
-    mem_block_size = (((U32)((*(mem_block + 2)) & 00001111)) << 6) + (((U32)((*(mem_block + 3)) & 11111100)) >> 4);
-    printf("SIZE: %d \n", mem_block_size);
-    if(mem_block_size == 0){
-        mem_block_size = 1024;
-    }
-    printf("SIZE: %d", mem_block_size);
+    mem_block_size = getSize(mem_block);
 
     if((mem_block_size*32 - n) < 32) {
         half_alloc_helper (mem_block, bin_index);

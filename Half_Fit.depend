@@ -25,3 +25,29 @@
 	"half_fit.h"
 	"type.h"
 
+1413170964 source:c:\users\user\documents\github\half-fit-memory-allocation-algorithm\half_fit.c
+	<stdio.h>
+	<stdbool.h>
+	<limits.h>
+	<math.h>
+	"half_fit.h"
+	"type.h"
+
+1413160529 c:\users\user\documents\github\half-fit-memory-allocation-algorithm\half_fit.h
+
+1413145000 c:\users\user\documents\github\half-fit-memory-allocation-algorithm\type.h
+
+1413145000 source:c:\users\user\documents\github\half-fit-memory-allocation-algorithm\hans_stuff.c
+	<stdbool.h>
+	<limits.h>
+	"half_fit.h"
+	"type.h"
+
+1413172748 source:c:\users\user\documents\github\half-fit-memory-allocation-algorithm\main.c
+	<stdio.h>
+	<errno.h>
+	<stdbool.h>
+	<stdlib.h>
+	"half_fit.h"
+	"type.h"
+
