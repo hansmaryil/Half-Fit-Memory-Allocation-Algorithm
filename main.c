@@ -95,6 +95,7 @@ int main (void){
     setNextInBinReferenceAddress(base_address, 800);
     nextInBinRefAddress = getNextInBinReferenceAddress(base_address);
     printf("next In Bin Reference Address: %d %d \n", nextInBinRefAddress, 800);
+<<<<<<< HEAD
     */
 
     test = half_alloc(3250);
@@ -109,4 +110,12 @@ int main (void){
     if (test5 == NULL){
         printf("Failed to allocated for 32768: Test 5 passed\n");
     }
+=======
+
+
+    //Testing the getter functions to retrieve the pointers to the previous and next memory blocks in a bin
+
+    U32 *test = half_alloc(32760);
+    //half_free( test );
+>>>>>>> origin/Dev
 }

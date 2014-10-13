@@ -16,6 +16,6 @@ typedef struct half_fit {
 void  half_init( void );
 U32 *half_alloc( U32 );
 // or void *half_alloc( unsigned int );
-void  half_free( char * );
+void  half_free( U32 *free_block);
 
 #endif
