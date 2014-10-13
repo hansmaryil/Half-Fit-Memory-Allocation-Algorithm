@@ -91,6 +91,6 @@ int main (void){
 
     //Testing the getter functions to retrieve the pointers to the previous and next memory blocks in a bin
 
-    //U32 *test = half_alloc(32760);
-
+    U32 *test = half_alloc(32760);
+    //half_free( test );
 }

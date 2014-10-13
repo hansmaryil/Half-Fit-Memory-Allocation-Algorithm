@@ -525,4 +525,4 @@ U32 *half_alloc( U32 n) {
              to the one being deallocated.
 */
 
-void  half_free( char * mem_block);
+//void  half_free( char * mem_block);
