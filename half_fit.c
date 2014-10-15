@@ -8,7 +8,7 @@
 //global variable declaration
 half_fit_t half_fit;
 U32 *base_address;
-U32 init_size = 8192; //each U32 int is 4 bytes; since we need 32768 bytes in total, 8192 U32 ints will be its equivalent
+U32 init_size = 8191; //each U32 int is 4 bytes; since we need 32768 bytes in total, 8192 U32 ints will be its equivalent
 U32 *bin_ptrs[11]; //initialize an array of uint pointers to point to the first block in each bin (initially NULL)
 
 void  half_init( void ){
@@ -613,4 +613,199 @@ U32 *half_alloc( U32 n) {
              to the one being deallocated.
 */
 
-void  half_free( char * mem_block);
+//this helper fcn inserts a block in the correct bin at the front of all blocks in the bin
+void insert_block_in_bin( U32 *block_being_inserted, U32 bin_index )
+{
+    if( bin_ptrs[bin_index] == NULL) //if there are no blocks in the bin, we can simply point the bin in the correct index to the new block being inserted into the bin
+    {
+        setPrevInBin(block_being_inserted, block_being_inserted); // since this is the only block in the bin, we will set the pointer to the previous block to point to itself
+        setNextInBin(block_being_inserted, block_being_inserted); // since this is the only block in the bin, we will set the pointer to the next block to point to itself
+    }
+    else
+    {
+        setPrevInBin(bin_ptrs[bin_index], block_being_inserted); //set the original first block's previous pointer in the bin to point to the new block we are inserting
+        setNextInBin(block_being_inserted, bin_ptrs[bin_index]); //set the new block's (the one we are inserting) next pointer in the bin to point to the previous first block in the bin
+    }
+    bin_ptrs[bin_index] = block_being_inserted; // update the bin_ptr in the appropriate index to now point to the new block at the front of the bin
+}
+
+//this helper function will update the appropriate bin when passing in the pointer to the address of the block in main memory that needs to be updated
+void update_bin_when_reallocating( U32 *adjacent_memory_block )
+{
+    U32 address_of_prev_block_in_bin;
+    U32 address_of_next_block_in_bin;
+
+    address_of_prev_block_in_bin = getPrevInBin(adjacent_memory_block); //gets the address of the prev block in the bin the adjacent unallocated block is in
+    address_of_next_block_in_bin = getNextInBin(adjacent_memory_block); //gets the address of the next block in the bin the adjacent unallocated block is in
+
+    if( (address_of_prev_block_in_bin == NULL) && (address_of_next_block_in_bin == NULL) ) // checks if there are no other members in the bin
+    {
+        bin_ptrs[(U32) floor(log(getSize(adjacent_memory_block) / log(2)))] = NULL; //sets the bin ptr of the appropriate block size to NULL (meaning the bin is empty)
+    }
+    else if ( (address_of_prev_block_in_bin == NULL) && (address_of_next_block_in_bin != NULL) ) // checks if this is the first block in the bin
+    {
+        bin_ptrs[(U32) floor(log(getSize(adjacent_memory_block) / log(2)))] = address_of_next_block_in_bin; //the bin pointer for the size of adjacent unallocated block now points to the next block in the adjacent block's bucket
+    }
+    else if ( (address_of_prev_block_in_bin != NULL) && (address_of_next_block_in_bin != NULL) ) // checks if this in a block in the bin between two other blocks in the same bin
+    {
+        setNextInBin(address_of_prev_block_in_bin, address_of_next_block_in_bin); // set the next pointer for the block to the left of adjacent_memory_block to point to the block to the right of adjacent_memory_block
+        setPrevInBin(address_of_prev_block_in_bin, address_of_prev_block_in_bin); // set the previous pointer for the block to the right of adjacent_memory_block to point to the block to the left of adjacent_memory_block
+    }
+    else  // the last case is if the adjacent, unallocated block is the last block in its respective bin
+    {
+        setNextInBin(address_of_prev_block_in_bin, address_of_prev_block_in_bin); //set the pointer in the bin of the block to the left of the unallocated block to itself (indicating it is the last block in that bin)
+    }
+}
+
+void  half_free( U32 *free_block )
+{
+    U32 *address_of_next_block_in_memory;
+    U32 *address_of_prev_block_in_memory;
+    U32 *address_of_prev_block_in_bin;
+    U32 *address_of_next_block_in_bin;
+    U32 new_size;
+    U32 new_bin_index;
+
+    address_of_next_block_in_memory = getNextInMemory(free_block); //use helper fcn to get the next address in memory
+    address_of_prev_block_in_memory = getPrevInMemory(free_block); //use helper fcn to get the previous address in memory
+
+
+    //Checks if the there is only one giant block of allocated memory that is taking up all of memory
+    if(getSize(free_block) == 1024)
+    {
+        insert_block_in_bin(free_block, 10); // insert the block in the front of the appropriate bin
+        setNextInMemory(free_block, free_block) ;
+        setDeallocate(free_block); // sets the allocated bit to 0
+    }
+
+    //there is only one block in memory that is allocated and the rest is free, unallocated memory
+    else if( (address_of_prev_block_in_memory == NULL) && (getNextInMemory(address_of_next_block_in_memory) == NULL) ) // there is only one allocated block
+    {
+        setPrevInMemory(free_block, free_block);
+        setPrevInMemory(address_of_next_block_in_memory, address_of_next_block_in_memory);
+        setNextInMemory(free_block, free_block);
+        setSize(free_block, 1024); //the new size will be the whole of memory since the block to be freed is the only one in memory
+        //getNextInMemory((free_block));
+        setDeallocate(free_block); //set the bit indicating allocation to 0, we dont care about the memory previously stored the block
+        update_bin_when_reallocating(free_block);
+        insert_block_in_bin(free_block, 10); // insert the block in the front of the appropriate bin
+        update_bin_when_reallocating(address_of_next_block_in_memory);
+    }
+    // ***** 1. FIRST CASE WHERE THE BLOCK TO BE FREED IS STANDALONE (no free blocks next to it) ***** \\
+
+    else if( ((address_of_prev_block_in_memory == NULL) && (!(isAllocated(address_of_next_block_in_memory)))) || ((address_of_next_block_in_memory == NULL) && (!(isAllocated(address_of_prev_block_in_memory))))
+        || ((!(isAllocated(address_of_prev_block_in_memory))) && (!(isAllocated(address_of_next_block_in_memory)))) )
+    {
+        new_bin_index = floor(log(getSize(free_block)) / log(2)); //the appropriate bin that the block to be freed must be put into
+
+        // if there are no adjacent free blocks, we simply need to update the bin that the freed block must go into
+        insert_block_in_bin(address_of_prev_block_in_memory, new_bin_index); // insert the block in the front of the appropriate bin
+        setDeallocate(free_block); //set the bit indicating allocation to 0, we dont care about the memory previously stored the block
+        //printf("")
+    }
+
+    // ***** 2. WE'LL TAKE THE CASE IF THE BLOCK BEING DEALLOCATED HAS ONLY A FREE BLOCK TO THE RIGHT OF IT ***** \\
+
+    else if( (address_of_prev_block_in_memory == NULL) || (isAllocated(address_of_prev_block_in_memory) && !(isAllocated(address_of_next_block_in_memory))) ) // check that only the block to the right of free_block is free
+    {
+        U32 *address_of_next_allocated_block;
+
+        new_size = getSize(address_of_next_block_in_memory) + getSize(free_block); //gets the size of   the new, combined block
+        new_bin_index = floor(log(new_size) / log(2)); //get the new bin index for the combined size of the free blocks
+
+
+        // we need to update the values in the header of both the free_block and the next allocated block of memory in sequence
+        if( getNextInMemory(address_of_next_block_in_memory) != NULL ) // this checks if the free block to the right of the block to be freed is the only other free block in the whole of memory
+        {
+            address_of_next_allocated_block = getNextInMemory(address_of_next_block_in_memory); // get the address of the next allocated block in the whole memory (after the block that is to be freed)
+            setNextInMemory(free_block, address_of_next_allocated_block); // make the pointer (in free_block) that points to the next block in memory point to the next allocated block in memory
+            setPrevInMemory(address_of_next_allocated_block, free_block); // make the pointer (in the next allocated block) that points to the previous block in memory point to free_block
+        }
+        else // at this point, we know that the free block to our right is the only other block in memory
+        {
+            setNextInMemory(free_block, free_block); // make the pointer (in free_block) that points to the next block in memory point to itself (because it is now the last block in memory
+        }
+
+        // check to see in which bin the new, combined block has to go into
+        if( new_bin_index >= ((floor(log(getSize(free_block)) / log(2))) + 1)  )
+        {
+            insert_block_in_bin(free_block, new_bin_index); // insert the block in the front of the appropriate bin
+            setSize(free_block, new_size);  // update the size of the new combined block
+        }
+
+        setDeallocate(free_block); //set the bit indicating allocation to 0, we dont care about the memory previously stored the block
+    }
+
+
+    // ***** 3. TAKE THE CASE IF THE BLOCK BEING DEALLOCATED HAS TWO ADJACENT FREE BLOCKS NEXT TO IT ***** \\
+
+    //check that there are two free adjacent blocks and that we are not at the end of the whole memory block
+    else if( (!(isAllocated(address_of_prev_block_in_memory))) && (!(isAllocated(address_of_next_block_in_memory))) && (address_of_next_block_in_memory != NULL) )
+    {
+        U32 *new_head_of_combined_free_block;
+        U32 *address_of_next_allocated_block;
+
+        new_size = getSize(address_of_prev_block_in_memory) + getSize(free_block) + getSize(address_of_next_block_in_memory); //gets the size of the new, combined block
+        new_bin_index = (U32) floor(log(new_size) / log(2)); //get the new bin index for the combined size of the free blocks
+
+        update_bin_when_reallocating( address_of_next_block_in_memory ); //update the bin that the adjacent unallocated block to the right of free_block is in
+
+        // we need to update the values in the header of both the free_block and the next allocated block of memory in sequence (if necessary)
+        if( getNextInMemory(address_of_next_block_in_memory) != NULL ) //this checks to ensure that the free block to the right is not the last block in memory
+        {
+            address_of_next_allocated_block = getNextInMemory(address_of_next_block_in_memory); // get the address of the next allocated block in the whole memory (after the block that is to be freed)
+            setNextInMemory(address_of_prev_block_in_memory, address_of_next_allocated_block); // make the pointer (in address_of_prev_block_in_memory) that points to the next block in memory point to the next allocated block in memory
+            setPrevInMemory(address_of_next_allocated_block, address_of_prev_block_in_memory); // make the pointer (in the next allocated block) that points to the previous block in memory point to address_of_prev_block_in_memory (which is the one to the left of free_block)
+        }
+        else
+        {
+            setNextInMemory(address_of_prev_block_in_memory, address_of_prev_block_in_memory); // make the pointer (in address_of_prev_block_in_memory) that points to the next block in memory point to itself (indicating that this is the last block in memory with no more blocks to the right of it)
+        }
+
+        // check to see in which bin the new, combined block has to go into
+        if( new_bin_index >= ((U32) ((floor(log(getSize(free_block)) / log(2))) + 1)) )
+        {
+            update_bin_when_reallocating( address_of_prev_block_in_memory ); //update the bin that the adjacent unallocated block to the left of free_block is in - only update this block in its bin if the new size, combined size is greater than what should be in its current bin
+            insert_block_in_bin(address_of_prev_block_in_memory, new_bin_index); // insert the block in the front of the appropriate bin
+            setSize(address_of_prev_block_in_memory, new_size);  // update the size of the new combined block
+        }
+
+        setDeallocate(free_block); //set the bit indicating allocation to 0, we dont care about the memory previously stored in the block
+    }
+
+
+    // ***** 4. WE'LL TAKE THE CASE IF THE BLOCK BEING DEALLOCATED HAS ONLY A FREE BLOCK TO THE LEFT OF IT ***** \\
+
+    else //if( ((address_of_next_block_in_memory == NULL) && (!(inline isAllocated(address_of_prev_block_in_memory)))) || (!(inline isAllocated(address_of_prev_block_in_memory)) && (inline isAllocated(address_of_next_block_in_memory))) ) // check that only the block to the right of free_block is free)
+    {
+        U32 *address_of_next_allocated_block;
+
+        new_size = getSize(address_of_prev_block_in_memory) + getSize(free_block); //gets the size of the new, combined block
+        new_bin_index = (U32) floor(log(new_size) / log(2)); //get the new bin index for the combined size of the free blocks
+
+        // we need to update the values in the header of the previous unallocated block of memory in sequence to point to the next allocated block in sequence
+        if( (address_of_next_block_in_memory == NULL) ) // if this is the last block in the whole of memory (no more blocks to its right), we need to update the free block to the left of the block to be freed to point to itself (indicating that its the last block in the whole of memory)
+        {
+            setNextInMemory(address_of_prev_block_in_memory, address_of_prev_block_in_memory); // make the pointer (in address_of_prev_block_in_memory) that points to the next block in memory point to itself
+        }
+        else // if the above condition is not met, then we know that there is an allocated block to the right of the block we are going to free
+        {
+            address_of_next_allocated_block = getNextInMemory(free_block); // get the address of the next allocated block in the whole memory (after the block that is to be freed)
+            setNextInMemory(address_of_prev_block_in_memory, address_of_next_allocated_block); // make the pointer (in address_of_prev_block_in_memory) that points to the next block in memory point to the next allocated block in memory
+            setPrevInMemory(address_of_next_allocated_block, address_of_prev_block_in_memory); // make the pointer (in the next allocated block) that points to the previous block in memory point to address_of_prev_block_in_memory (which is the one to the left of free_block)
+        }
+
+        // check to see in which bin the new, combined block has to go into
+        if( new_bin_index >= ((U32) ((floor(log(getSize(address_of_prev_block_in_memory)) / log(2))) + 1)) )
+        {
+            update_bin_when_reallocating( address_of_prev_block_in_memory ); //update the bin that the adjacent unallocated block to the left of free_block is in - only update this block in its bin if the new size, combined size is greater than what should be in its current bin
+            insert_block_in_bin(address_of_prev_block_in_memory, new_bin_index); // insert the block in the front of the appropriate bin
+            setSize(address_of_prev_block_in_memory, new_size);  // update the size of the new combined block
+            printf("The size of the new block is: %d \n", getSize(address_of_prev_block_in_memory));
+        }
+
+        setDeallocate(free_block); //set the bit indicating allocation to 0, we dont care about the memory previously stored in the block
+    }
+
+
+}

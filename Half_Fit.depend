@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1413229387 source:e:\documents\my box files\2b tron\mte 241 - real time systems\projects\project 2\half-fit-memory-allocation-algorithm\half_fit.c
+1413355255 source:e:\documents\my box files\2b tron\mte 241 - real time systems\projects\project 2\half-fit-memory-allocation-algorithm\half_fit.c
 	<stdio.h>
 	<stdbool.h>
 	<limits.h>
@@ -7,11 +7,11 @@
 	"half_fit.h"
 	"type.h"
 
-1413240469 e:\documents\my box files\2b tron\mte 241 - real time systems\projects\project 2\half-fit-memory-allocation-algorithm\half_fit.h
+1413299213 e:\documents\my box files\2b tron\mte 241 - real time systems\projects\project 2\half-fit-memory-allocation-algorithm\half_fit.h
 
 1412808484 e:\documents\my box files\2b tron\mte 241 - real time systems\projects\project 2\half-fit-memory-allocation-algorithm\type.h
 
-1413240435 source:e:\documents\my box files\2b tron\mte 241 - real time systems\projects\project 2\half-fit-memory-allocation-algorithm\main.c
+1413354545 source:e:\documents\my box files\2b tron\mte 241 - real time systems\projects\project 2\half-fit-memory-allocation-algorithm\main.c
 	<stdio.h>
 	<errno.h>
 	<stdbool.h>
@@ -54,6 +54,14 @@
 	"type.h"
 
 1413243028 source:c:\users\user\documents\github\half-fit-memory-allocation-algorithm\half_fit_test.c
+	"half_fit.h"
+	<stdio.h>
+	<errno.h>
+	<stdbool.h>
+	<stdlib.h>
+	"type.h"
+
+1413344838 source:e:\documents\my box files\2b tron\mte 241 - real time systems\projects\project 2\half-fit-memory-allocation-algorithm\half_fit_test.c
 	"half_fit.h"
 	<stdio.h>
 	<errno.h>

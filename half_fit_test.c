@@ -87,7 +87,7 @@ size_t find_max_block( void ) {
 		p = half_alloc( i );
 
 		if ( p != NULL ) {
-			//half_free( p );
+			half_free( p );
 			return i;
 		}
 	}
@@ -215,25 +215,25 @@ bool test_static_alc_free( void ) {
 	ptr_5 = half_alloc(12345);
 	if (ptr_5 == NULL) return false;
 
-	//half_free(ptr_1);
+	half_free(ptr_1);
 
 	ptr_6 = half_alloc(1);
 	if (ptr_6 == NULL) return false;
 
-	//half_free(ptr_3);
+	half_free(ptr_3);
 
-	//half_free(ptr_4);
+	half_free(ptr_4);
 
 	ptr_1 = half_alloc(1 << 9);
 	if (ptr_1 == NULL) return false;
 
-	//half_free(ptr_6);
+	half_free(ptr_6);
 
-	//half_free(ptr_1);
+	half_free(ptr_1);
 
-	//half_free(ptr_2);
+	half_free(ptr_2);
 
-	//half_free(ptr_5);
+	half_free(ptr_5);
 
 	// Check wether all allocated memory blocks are freed.
 	ptr_1 = half_alloc(max_sz);
@@ -242,7 +242,7 @@ bool test_static_alc_free( void ) {
 		rslt = false;
 		printf("Memory is defraged.\n");
 	} else {
-		//half_free(ptr_1);
+		half_free(ptr_1);
 	}
 
 	return rslt;
@@ -286,16 +286,16 @@ bool test_static_alc_free_violation( void ) {
 	}
 
 	--blks_sz;
-	//half_free(blks[blks_sz].ptr);
+	half_free(blks[blks_sz].ptr);
 
 	--blks_sz;
-	//half_free(blks[blks_sz].ptr);
+	half_free(blks[blks_sz].ptr);
 
 	--blks_sz;
-	//half_free(blks[blks_sz].ptr);
+	half_free(blks[blks_sz].ptr);
 
 	--blks_sz;
-	//half_free(blks[blks_sz].ptr);
+	half_free(blks[blks_sz].ptr);
 
 	alloc_blk_in_arr(blks, &blks_sz, (1 << 9));
 
@@ -304,10 +304,10 @@ bool test_static_alc_free_violation( void ) {
 		return false;
 
 	--blks_sz;
-	//half_free(blks[blks_sz].ptr);
+	half_free(blks[blks_sz].ptr);
 
 	--blks_sz;
-	//half_free(blks[blks_sz].ptr);
+	half_free(blks[blks_sz].ptr);
 
 	// Check wether all allocated memory blocks are freed.
 	ptr_1 = half_alloc(max_sz);
@@ -316,7 +316,7 @@ bool test_static_alc_free_violation( void ) {
 		rslt = false;
 		printf("Memory is defraged.\n");
 	} else {
-		//half_free( ptr_1 );
+		half_free( ptr_1 );
 	}
 
 	return rslt;
@@ -377,7 +377,7 @@ bool test_rndm_alc_free( void ) {
 		if ( (rand() % 2) && (blks_sz > 0) ) {
 			// Free a random block
 			tbf = rand() % blks_sz;	// To be freed idex
-			//half_free(blks[tbf].ptr);
+			half_free(blks[tbf].ptr);
 			printf("%i)The %d Byte block starting from %d is free1\n", ++line, blks[tbf].len, blks[tbf].ptr);
 			--blks_sz;
 			blks[tbf] = blks[blks_sz];
@@ -403,7 +403,7 @@ bool test_rndm_alc_free( void ) {
 
 
 	for ( i = blks_sz - 1; i >= 0; --i ) {
-		//half_free(blks[i].ptr);
+		half_free(blks[i].ptr);
 		--blks_sz;
 		printf("%i)The %d Byte block starting from %d is free2\n", ++line, blks[i].len, blks[i].ptr);
 	}
@@ -418,7 +418,7 @@ bool test_rndm_alc_free( void ) {
 		rslt = false;
 		printf("Memory is defraged.\n");
 	} else {
-		//half_free(ptr_1);
+		half_free(ptr_1);
 	}
 
 	return rslt;

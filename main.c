@@ -98,24 +98,28 @@ int main (void){
 <<<<<<< HEAD
     */
 
-    test = half_alloc(3250);
+    test = half_alloc(32763);
     printf("Test 3250 bytes allocation: %d %d %d %d %d %x\n", getPrevInMemoryReferenceAddress(test), getNextInMemoryReferenceAddress(test), getSize(test), isAllocated(test), (test-base_address)/32, base_address);
+    half_free(test);
     test2 = half_alloc(24);
     printf("Test2 24 bytes allocation: %d %d %d %d %d %x\n", getPrevInMemoryReferenceAddress(test2), getNextInMemoryReferenceAddress(test2), getSize(test2), isAllocated(test2), (test2-base_address)/32, base_address);
+    half_free(test2);
     test3 = half_alloc(515);
     printf("Test3 515 bytes allocation: %d %d %d %d %d %x\n", getPrevInMemoryReferenceAddress(test3), getNextInMemoryReferenceAddress(test3), getSize(test3), isAllocated(test3), (test3-base_address)/32, base_address);
+    half_free(test3);
     test4 = half_alloc(2048);
     printf("Test4 2048 bytes allocation: %d %d %d %d %d %x\n", getPrevInMemoryReferenceAddress(test4), getNextInMemoryReferenceAddress(test4), getSize(test4), isAllocated(test4), (test4-base_address)/32, base_address);
+    half_free(test4);
     test5 = half_alloc(32768);
     if (test5 == NULL){
         printf("Failed to allocated for 32768: Test 5 passed\n");
     }
-=======
+
 
 
     //Testing the getter functions to retrieve the pointers to the previous and next memory blocks in a bin
 
-    U32 *test = half_alloc(32760);
+    //test = half_alloc(32760);
     //half_free( test );
->>>>>>> origin/Dev
+
 }
