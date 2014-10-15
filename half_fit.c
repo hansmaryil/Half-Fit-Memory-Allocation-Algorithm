@@ -681,15 +681,17 @@ void  half_free( U32 *free_block )
     //there is only one block in memory that is allocated and the rest is free, unallocated memory
     else if( (address_of_prev_block_in_memory == NULL) && (getNextInMemory(address_of_next_block_in_memory) == NULL) ) // there is only one allocated block
     {
+        update_bin_when_reallocating(address_of_next_block_in_memory);
         setPrevInMemory(free_block, free_block);
         setPrevInMemory(address_of_next_block_in_memory, address_of_next_block_in_memory);
         setNextInMemory(free_block, free_block);
         setSize(free_block, 1024); //the new size will be the whole of memory since the block to be freed is the only one in memory
         //getNextInMemory((free_block));
         setDeallocate(free_block); //set the bit indicating allocation to 0, we dont care about the memory previously stored the block
-        update_bin_when_reallocating(free_block);
+        //update_bin_when_reallocating(free_block);
         insert_block_in_bin(free_block, 10); // insert the block in the front of the appropriate bin
-        update_bin_when_reallocating(address_of_next_block_in_memory);
+        getPrevInMemory(free_block);
+
     }
     // ***** 1. FIRST CASE WHERE THE BLOCK TO BE FREED IS STANDALONE (no free blocks next to it) ***** \\
 

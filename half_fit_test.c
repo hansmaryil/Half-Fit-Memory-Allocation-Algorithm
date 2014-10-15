@@ -215,7 +215,7 @@ bool test_static_alc_free( void ) {
 	ptr_5 = half_alloc(12345);
 	if (ptr_5 == NULL) return false;
 
-	half_free(ptr_1);
+	//half_free(ptr_1);
 
 	ptr_6 = half_alloc(1);
 	if (ptr_6 == NULL) return false;
@@ -462,12 +462,12 @@ int main( void ) {
 	//TimerInit();
 
 	//TimerStart(); {
-		printf( "test_max_alc=%i \n",                   test_max_alc() );
+		//printf( "test_max_alc=%i \n",                   test_max_alc() );
 
-		printf( "test_alc_free_max=%i \n",              test_alc_free_max() );
-		printf( "test_static_alc_free=%i \n",           test_static_alc_free() );
-		printf( "test_static_alc_free_violation=%i \n", test_static_alc_free_violation() );
-		printf( "test_rndm_alc_free=%i \n",             test_rndm_alc_free() );
+		//printf( "test_alc_free_max=%i \n",              test_alc_free_max() );
+		//printf( "test_static_alc_free=%i \n",           test_static_alc_free() );
+		//printf( "test_static_alc_free_violation=%i \n", test_static_alc_free_violation() );
+		//printf( "test_rndm_alc_free=%i \n",             test_rndm_alc_free() );
 		printf( "test_max_alc_1_byte=%i \n",            test_max_alc_1_byte() );
 	//} TimerStop();
 
